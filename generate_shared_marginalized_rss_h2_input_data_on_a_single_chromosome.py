@@ -65,15 +65,26 @@ def get_indices_corresponding_to_regression_snps(all_snps, regression_snps):
 
 def corr2_coeff(A, B):
     # Rowwise mean of input arrays & subtract from input arrays themeselves
-    A_mA = A - A.mean(1)[:, None]
-    B_mB = B - B.mean(1)[:, None]
+    A_mA = A - np.mean(A,axis=1)[:,None]
+    B_mB = B - np.mean(B,axis=1)[:,None]
+   
+    # Sum of squares across rows
+    ssA = np.sum(np.square(A_mA), axis=1)
+    ssB = np.sum(np.square(B_mB), axis=1)
+
+    corr_coef = np.dot(A_mA, np.transpose(B_mB)) / np.sqrt(np.dot(ssA[:, None],ssB[None]))
+
+    #A_mA = A - A.mean(1)[:, None]
+    #B_mB = B - B.mean(1)[:, None]
 
     # Sum of squares across rows
-    ssA = (A_mA**2).sum(1)
-    ssB = (B_mB**2).sum(1)
+    #ssA = (A_mA**2).sum(1)
+    #ssB = (B_mB**2).sum(1)
 
     # Finally get corr coeff
-    return np.dot(A_mA, B_mB.T) / np.sqrt(np.dot(ssA[:, None],ssB[None]))
+    #return np.dot(A_mA, B_mB.T) / np.sqrt(np.dot(ssA[:, None],ssB[None]))
+
+    return corr_coef
 
 def sp_inv(A, x):
 
@@ -100,9 +111,13 @@ def create_ld_matrix(G_obj, row_snp_indices, column_snp_indices):
 
 	for row_iter, row_snp_index in enumerate(row_snp_indices):
 		valid_columns = np.abs(snp_pos[row_snp_index] - snp_pos[column_snp_indices]) <= 1000000.0
-		corrz = corr2_coeff(G_t[row_snp_index,None], G_t[column_snp_indices[valid_columns],:])[0,:]
-		ld_mat[row_iter, valid_columns] = corrz
-
+		#corrz = corr2_coeff(G_t[row_snp_index,None], G_t[column_snp_indices[valid_columns],:])[0,:]
+		for col_iter, col_snp_index in enumerate(column_snp_indices):
+			if valid_columns[col_iter]:
+				if row_snp_index >= col_snp_index:
+					ld_mat[row_iter, col_iter] = np.corrcoef(G[:, row_snp_index], G[:,col_snp_index])[0,1]
+				else:
+					ld_mat[row_iter, col_iter] = np.corrcoef(G[:, row_snp_index], G[:,col_snp_index])[1,0]
 
 	ld_mat2 = ld_mat.tocsr(copy=False)
 
@@ -201,6 +216,7 @@ ld_mat_reg_ref = create_ld_matrix(G_obj, regression_snp_indices, np.arange(len(G
 # Save to output
 output_ld_mat_reg_ref = shared_input_data_dir + 'ld_mat_regression_reference_chr_' + chrom_num + '.npz'
 scipy.sparse.save_npz(output_ld_mat_reg_ref, ld_mat_reg_ref, compressed=True)
+
 
 
 # Extract sparse LD matrix of dimension regression snps by regression snps

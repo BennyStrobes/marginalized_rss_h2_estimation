@@ -24,6 +24,7 @@ fi
 
 
 
-
 # Run regression
+if false; then
 python3 run_marginalized_rss_h2_regression.py $trait_name $shared_input_data_dir $trait_specific_input_data_dir $marginalized_rss_h2_results_dir
+fi
