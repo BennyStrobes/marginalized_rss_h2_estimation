@@ -2,7 +2,7 @@
 #SBATCH -c 1                               # Request one core
 #SBATCH -t 0-30:00                         # Runtime in D-HH:MM format
 #SBATCH -p medium                           # Partition to run in
-#SBATCH --mem=30G                         # Memory total in MiB (for all cores)
+#SBATCH --mem=50G                         # Memory total in MiB (for all cores)
 
 
 
@@ -25,6 +25,4 @@ fi
 
 
 # Run regression
-if false; then
 python3 run_marginalized_rss_h2_regression.py $trait_name $shared_input_data_dir $trait_specific_input_data_dir $marginalized_rss_h2_results_dir
-fi
