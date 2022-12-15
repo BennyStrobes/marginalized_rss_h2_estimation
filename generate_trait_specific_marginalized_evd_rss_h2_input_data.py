@@ -72,7 +72,7 @@ window_size = sys.argv[6]
 # Output file to summary trait data (one line per window)
 trait_data_summary_file = trait_specific_input_data_dir + trait_name + '_' + str(window_size) + '_mb_window_summary.txt'
 t = open(trait_data_summary_file,'w')
-t.write('window_name\tchrom_num\tannotation_file\tld_mat_reg_ref\tld_mat_reg_reg\tz_score_file\tsnp_index_file\tsample_size\n')
+t.write('window_name\tchrom_num\tannotation_file\tld_mat_reg_ref\tz_score_file\tsample_size\n')
 
 
 # Extract trait-specific summary stat data
@@ -97,22 +97,29 @@ for chrom_num in range(1,23):
 		window_name = data[0]
 		chrom_num = data[1]
 
+
 		# Extract indices corresponding to regression snps
 		regression_snp_indices, z_scores = get_valid_snp_indices_and_z_scores(shared_input_data_dir + 'regression_snp.' + window_size + '_mb_windows_' + window_name + '.bim', rsid_to_info)
+
+		# Load in evd weights amtrix
+		evd_weights = np.load(shared_input_data_dir + 'ld_mat_evd_regression_snp_weights_chr_' + window_size + '_mb_windows_' + window_name + '.npy')
+		# Filter to weights from observed regression snps
+		evd_weights = evd_weights[:, regression_snp_indices]
+
+		# Get evd z scores
+		evd_z_scores = np.dot(evd_weights, z_scores)
 
 		# Save to output
 		snp_index_output_file = trait_specific_input_data_dir + trait_name + '_valid_regression_indices_' + window_size + '_mb_windows_' + window_name + '.txt'
 		np.savetxt(snp_index_output_file, regression_snp_indices, fmt="%s", delimiter='\n')
 		z_output_file = trait_specific_input_data_dir + trait_name + '_z_scores_' + window_size + '_mb_windows_' + window_name + '.txt'
-		np.savetxt(z_output_file, z_scores, fmt="%s", delimiter='\n')
+		np.savetxt(z_output_file, evd_z_scores, fmt="%s", delimiter='\n')
 
 		# Premade output file paths
 		annotation_file = shared_input_data_dir + 'reference_annotation.' + window_size + '_mb_windows_' + window_name + '.npy'
-		ld_mat_reg_ref_file = shared_input_data_dir + 'ld_mat_regression_reference_chr_' + window_size + '_mb_windows_' + window_name + '.npz'
-		ld_mat_reg_reg_file = shared_input_data_dir + 'ld_mat_regression_regression_chr_' + window_size + '_mb_windows_' + window_name + '.npz'
-
+		ld_mat_reg_ref_file = shared_input_data_dir + 'ld_mat_evd_regression_reference_chr_' + window_size + '_mb_windows_' + window_name + '.npy'
 		# Print to output
-		t.write(window_name + '\t' + chrom_num + '\t' + annotation_file + '\t' + ld_mat_reg_ref_file + '\t' + ld_mat_reg_reg_file + '\t' + z_output_file + '\t' + snp_index_output_file + '\t' + str(gwas_sample_size) + '\n')
+		t.write(window_name + '\t' + chrom_num + '\t' + annotation_file + '\t' + ld_mat_reg_ref_file + '\t' + z_output_file + '\t' + str(gwas_sample_size) + '\n')
 
 	f.close()
 t.close()

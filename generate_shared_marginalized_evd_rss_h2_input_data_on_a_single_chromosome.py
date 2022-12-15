@@ -8,7 +8,7 @@ import pickle
 import time
 import scipy.sparse
 import gzip
-
+from sklearn.decomposition import PCA
 
 
 def load_in_regression_snps(regression_snp_file):
@@ -91,23 +91,17 @@ def corr2_coeff(A, B):
 def create_ld_matrix(G_obj, row_snp_indices, column_snp_indices):
 	snp_pos = np.asarray(G_obj.pos)
 	G_t = np.float64(np.transpose(G_obj.values))
-	#G =G_obj.values
-
-	ld_mat = scipy.sparse.lil_matrix((len(row_snp_indices), len(column_snp_indices)))
-
+	'''
+	ld_mat = np.zeros((len(row_snp_indices), len(column_snp_indices)))
 
 	for row_iter, row_snp_index in enumerate(row_snp_indices):
-		valid_columns = np.abs(snp_pos[row_snp_index] - snp_pos[column_snp_indices]) <= 1000000.0
-		corrz = corr2_coeff(G_t[row_snp_index,None], G_t[column_snp_indices[valid_columns],:])[0,:]
+		corrz = corr2_coeff(G_t[row_snp_index,None], G_t[column_snp_indices,:])[0,:]
 		corrz = np.around(corrz, decimals=8)
-		#corrz2 = corr2_coeff(G_t[column_snp_indices[valid_columns],:], G_t[row_snp_index,None])[:,0]
-		#corrz2 = np.around(corrz2, decimals=5)
-		ld_mat[row_iter, valid_columns] = corrz
+		ld_mat[row_iter, :] = corrz
+	'''
+	ld_mat = corr2_coeff(G_t[row_snp_indices,:], G_t[column_snp_indices,:])
 
-	ld_mat2 = ld_mat.tocsr(copy=False)
-
-
-	return ld_mat2
+	return ld_mat
 
 def print_bim_for_set_of_snps(G_obj, snp_indices, output_file):
 	chrom_array = np.asarray(G_obj.chrom)
@@ -227,6 +221,52 @@ def get_and_print_genomic_windows(G_obj, window_size, window_file, regression_sn
 	t.close()
 
 
+def get_non_negative_eigenvalue_decomp_indices(ww):
+	ww[ww <0.0] = 0.0
+	total_var = np.sum(ww)
+
+	evd_indices = []
+	for index in np.argsort(-ww):
+		if ww[index] > 0.0:
+			evd_indices.append(index)
+	evd_indices = np.asarray(evd_indices)
+
+
+	return evd_indices
+
+
+def get_eigenvalue_decomp_indices_that_explain_x_pve(ww, xx):
+	ww[ww <0.0] = 0.0
+	total_var = np.sum(ww)
+
+	evd_indices = []
+	cumalative_var = 0.0
+	for index in np.argsort(-ww):
+		if cumalative_var/total_var >= xx:
+			continue
+		cumalative_var = cumalative_var + ww[index]
+		evd_indices.append(index)
+	evd_indices = np.asarray(evd_indices)
+
+	# QUick error checking
+	if np.sum(ww[evd_indices])/np.sum(ww) < xx:
+		print('assumption eroror')
+		pdb.set_trace()
+
+	return evd_indices
+
+def run_pca(geno_reg):
+	stand_geno_reg = np.copy(geno_reg)
+	for col_num in range(geno_reg.shape[1]):
+		stand_geno_reg[:, col_num] = (geno_reg[:,col_num] - np.mean(geno_reg[:,col_num]))/np.std(geno_reg[:,col_num])
+
+	pca = PCA(n_components=10)
+	pca.fit((stand_geno_reg))
+	# pca.components_[9,:]
+	pdb.set_trace()
+	#pca.fit_transform(np.transpose(stand_geno_reg))[:,0]
+
+
 chrom_num = sys.argv[1]
 ldsc_annotation_dir = sys.argv[2]
 ldsc_genotype_dir = sys.argv[3]
@@ -306,16 +346,49 @@ for line in f:
 	# Extract sparse LD matrix of dimension regression snps by regression snps
 	ld_mat_reg_reg = create_ld_matrix(G_obj, window_regression_snp_indices, window_regression_snp_indices)
 	# Save to output
-	output_ld_mat_reg_reg = shared_input_data_dir + 'ld_mat_regression_regression_chr_' + str(int(window_size)) + '_mb_windows_' + window_name + '.npz'
-	scipy.sparse.save_npz(output_ld_mat_reg_reg, ld_mat_reg_reg, compressed=True)
+	output_ld_mat_reg_reg = shared_input_data_dir + 'ld_mat_regression_regression_chr_' + str(int(window_size)) + '_mb_windows_' + window_name + '.npy'
+	np.save(output_ld_mat_reg_reg, ld_mat_reg_reg)
 
 	# Extract sparse LD matrix of dimension regression snps by reference snps
 	ld_mat_reg_ref = create_ld_matrix(G_obj, window_regression_snp_indices, window_reference_snp_indices)
 	# Save to output
-	output_ld_mat_reg_ref = shared_input_data_dir + 'ld_mat_regression_reference_chr_' + str(int(window_size)) + '_mb_windows_' + window_name + '.npz'
-	scipy.sparse.save_npz(output_ld_mat_reg_ref, ld_mat_reg_ref, compressed=True)
+	output_ld_mat_reg_ref = shared_input_data_dir + 'ld_mat_regression_reference_chr_' + str(int(window_size)) + '_mb_windows_' + window_name + '.npy'
+	np.save(output_ld_mat_reg_ref, ld_mat_reg_ref)
+
+	# Eigenval decomp
+	ww, vv = np.linalg.eigh(ld_mat_reg_reg)
+	# Select indices that explain >= X percent of variance
+	#evd_indices = get_eigenvalue_decomp_indices_that_explain_x_pve(ww, .99)
+	evd_indices = get_non_negative_eigenvalue_decomp_indices(ww)
+
+	# Subset ww and vv to those that explain most variance
+	ww_subset = ww[evd_indices]
+	vv_subset = vv[:, evd_indices]
+	# Weights
+	weights = np.dot(np.diag(np.sqrt(1.0/ww_subset)), np.transpose(vv_subset))
+
+	############
+	#geno_ref = G_obj.values[:, window_reference_snp_indices]
+	#geno_reg = G_obj.values[:, window_regression_snp_indices]
+	#geno_evd = np.dot(weights, np.transpose(geno_reg))
+
+	#run_pca(geno_reg)
+	#############
 
 
+	# Save weights to output
+	output_evd_regression_snp_weights = shared_input_data_dir + 'ld_mat_evd_regression_snp_weights_chr_' + str(int(window_size)) + '_mb_windows_' + window_name + '.npy'
+	np.save(output_evd_regression_snp_weights, weights)
+
+	# Extract  LD matrix of dimension EVD-regression snps by reference snps
+	ld_mat_evd_reg_ref = np.dot(weights, ld_mat_reg_ref)
+	# Save to output
+	output_ld_mat_evd_reg_ref = shared_input_data_dir + 'ld_mat_evd_regression_reference_chr_' + str(int(window_size)) + '_mb_windows_' + window_name + '.npy'
+	np.save(output_ld_mat_evd_reg_ref, ld_mat_evd_reg_ref)
+
+	#R_reconstructed = np.dot(np.dot(vv_subset, np.diag(ww_subset)), np.transpose(vv_subset))
+	# Subset columns of vv to subset
+	#pdb.set_trace()
 
 
 f.close()
