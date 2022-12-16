@@ -68,8 +68,9 @@ fi
 
 trait_name="UKB_460K.blood_WHITE_COUNT"
 window_size="5"
+if false; then
 sh run_marginalized_rss_h2_regression.sh $trait_name $shared_input_data_dir $trait_specific_input_data_dir $marginalized_rss_h2_results_dir $sumstat_dir $window_size
-
+fi
 
 
 
@@ -93,9 +94,9 @@ fi
 
 
 trait_name="UKB_460K.blood_WHITE_COUNT"
-window_size="10"
+window_size="5"
 if false; then
-sh run_block_ld_score_regression.sh $trait_name $window_size $shared_input_data_dir $shared_evd_input_data_dir $ldsc_results $ldsc_evd_results $sumstat_dir
+sbatch run_block_ld_score_regression.sh $trait_name $window_size $shared_input_data_dir $shared_evd_input_data_dir $ldsc_results $ldsc_evd_results $sumstat_dir
 fi
 
 

@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH -c 1                               # Request one core
-#SBATCH -t 0-30:00                         # Runtime in D-HH:MM format
-#SBATCH -p medium                           # Partition to run in
+#SBATCH -t 0-10:00                         # Runtime in D-HH:MM format
+#SBATCH -p short                           # Partition to run in
 #SBATCH --mem=50G                         # Memory total in MiB (for all cores)
 
 
@@ -16,9 +16,8 @@ sumstat_dir="$7"
 
 
 
-if false; then
 python3 prepare_ldsc_input_data_for_a_trait.py $trait_name $window_size $shared_input_data_dir $ldsc_results $sumstat_dir
-fi
+
 
 chi_sq_file=$ldsc_results$trait_name"_"$window_size"_mb_windows_chi_sq_stats.txt"
 ld_score_file=$ldsc_results$trait_name"_"$window_size"_mb_windows_ld_scores.txt"
