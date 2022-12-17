@@ -154,7 +154,7 @@ def rss_w_intercept_softplus_neg_log_likelihood_and_gradient_on_single_chromosom
 	anno_prod_exp = np.exp(anno_prod)
 	beta_beta_transpose_diag = softplus_np(anno_prod)*sample_size
 
-	print(beta_beta_transpose_diag/sample_size)
+	#print(beta_beta_transpose_diag/sample_size)
 
 
 	# Compute single element of covariance
@@ -590,7 +590,7 @@ def rss_neg_log_likelihood(x, trait_name, shared_input_data_dir, trait_specific_
 
 
 def run_adam_optimization(x, trait_name, trait_data_summary):
-	optimizer = tf.keras.optimizers.Adam(learning_rate=1e-5)
+	optimizer = tf.keras.optimizers.Adam()
 	#optimizer = tf.keras.optimizers.SGD()
 	x_tf = tf.Variable(x, dtype=tf.float64)
 
@@ -603,17 +603,18 @@ def run_adam_optimization(x, trait_name, trait_data_summary):
 			# Extract data on this window
 			# Annotation file
 			chrom_anno = np.load(trait_data_summary[window_iter, 2])
-			chrom_anno = chrom_anno[:,:len(x)]
+			chrom_anno = chrom_anno[:,:len(x[1:])]
 			#chrom_anno = chrom_anno[:,0].reshape((chrom_anno.shape[0],1))
 			# LD mat reg ref
 			ld_mat_reg_ref_file = trait_data_summary[window_iter, 3]
-			chrom_ld_mat_reg_ref = scipy.sparse.load_npz(ld_mat_reg_ref_file)
+			chrom_ld_mat_reg_ref = np.load(ld_mat_reg_ref_file)
 			# LD mat reg reg
 			ld_mat_reg_reg_file = trait_data_summary[window_iter, 4]
-			chrom_ld_mat_reg_reg = scipy.sparse.load_npz(ld_mat_reg_reg_file)
+			chrom_ld_mat_reg_reg = np.load(ld_mat_reg_reg_file)
 			# Z scores
 			z_score_file = trait_data_summary[window_iter, 5]
 			z_scores = np.loadtxt(z_score_file)
+
 
 			# Valid regression indices
 			valid_regression_indices_file = trait_data_summary[window_iter, 6]
@@ -622,37 +623,23 @@ def run_adam_optimization(x, trait_name, trait_data_summary):
 			# Get sample size
 			sample_size = float(trait_data_summary[window_iter, 7])
 
+			if chrom_ld_mat_reg_reg.shape[0] == 1:
+				continue
+
 			# Fillter regression indices to those we have z-scores for
 			chrom_ld_mat_reg_ref = chrom_ld_mat_reg_ref[valid_regression_indices,:]
 			chrom_ld_mat_reg_reg = chrom_ld_mat_reg_reg[valid_regression_indices,:][:, valid_regression_indices]
 
+			chrom_neg_likelihood, chrom_gradient = rss_w_intercept_softplus_neg_log_likelihood_and_gradient_on_single_chromosome(x, z_scores, chrom_ld_mat_reg_ref, chrom_ld_mat_reg_reg, chrom_anno, sample_size)
 
-			# Compute rss log likelihood on this window
-			if chrom_ld_mat_reg_reg.shape[0] == 1:
-				continue
-
-			pdb.set_trace()
-
-			#grad = scipy.optimize.approx_fprime(x, rss_neg_log_likelihood_on_single_chromosome,1.4901161193847656e-08, z_scores, chrom_ld_mat_reg_ref, chrom_ld_mat_reg_reg, chrom_anno, sample_size)
-			chrom_neg_likelihood, chrom_gradient = rss_neg_log_likelihood_and_gradient_on_single_chromosome(x, z_scores, chrom_ld_mat_reg_ref, chrom_ld_mat_reg_reg, chrom_anno, sample_size)
-			#print(chrom_neg_likelihood)
-			#x_tf = tf.Variable(x, dtype=tf.float64)
 			tf_grad = tf.constant(chrom_gradient)
-			#print(x)
-			#print(chrom_gradient)
-			#if window_iter == 1:
-				#print(chrom_neg_likelihood)
-			#optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
+
 			optimizer.apply_gradients(zip([tf_grad], [x_tf]))
 
 			x = np.copy(x_tf)
 			total_log_like = total_log_like + chrom_neg_likelihood
-			#print(total_log_like)
-			print(x)
-
-			#pdb.set_trace()
-			#grad = scipy.optimize.approx_fprime(x, rss_neg_log_likelihood_single_chromosome,1.4901161193847656e-08, z_scores, chrom_ld_mat_reg_ref, chrom_ld_mat_reg_reg, chrom_anno, sample_size, 1)
-		print(x)
+			print(softplus_np(x))
+		print(softplus_np(x))
 		print(total_log_like)
 
 def extract_non_colinear_regression_snp_indices(chrom_ld_mat_reg_ref, abs_correlation_thresh):
@@ -940,28 +927,35 @@ marginalized_rss_h2_results_dir = sys.argv[3]
 
 # Load in trait data summary file
 trait_data_summary = np.loadtxt(trait_data_summary_file, dtype=str,delimiter='\t')[1:,:]
-trait_data_summary =trait_data_summary[trait_data_summary[:,1].astype(float) == 21,:]
+#trait_data_summary =trait_data_summary[trait_data_summary[:,1].astype(float) == 21,:]
 
 
 
+################################################
+# ADAM With ONLY INTERCEPT WITH SOFTPLUS LINK
+################################################
+# Initialize tau vector
+num_anno = np.load(trait_data_summary[0,2]).shape[1] +1
+num_anno = 2
+tau_0 = np.zeros(num_anno) 
+tau_0[1] = softplus_inv_np(1e-5)
+tau_0[0] = softplus_inv_np(.05)
+
+run_adam_optimization(tau_0, trait_name, trait_data_summary)
 
 
-
-
-
-'''
 ################################################
 # LBFGS USING FULL BASELINELD WITH SOFTPLUS LINK
 ################################################
 # Initialize tau vector
+'''
 num_anno = np.load(trait_data_summary[0,2]).shape[1] +1
-#num_anno = 2
-tau_0 = np.zeros(num_anno) - 12.0
+tau_0 = np.zeros(num_anno) 
 tau_0[1] = softplus_inv_np(1e-5)
 tau_0[0] = softplus_inv_np(.05)
 
 
-opti=scipy.optimize.fmin_l_bfgs_b(rss_w_intercept_softplus_neg_log_likelihood_and_grad, tau_0, args=(trait_name, trait_data_summary), factr=10.0, approx_grad=False, iprint=101)
+opti=scipy.optimize.fmin_l_bfgs_b(rss_w_intercept_softplus_neg_log_likelihood_and_grad, tau_0, args=(trait_name, trait_data_summary), approx_grad=False, iprint=101)
 print(softplus_np(opti[0]))
 print(opti[2]['warnflag'])
 print(opti)
@@ -971,7 +965,7 @@ pdb.set_trace()
 
 '''
 ################################################
-# LBFGS USING ONLY INTERCEPT WITH SOFTPLUS LINK
+# LBFGS USING ONLY INTERCEPT WITH_o SOFTPLUS LINK
 ################################################
 # Initialize tau vector
 num_anno = np.load(trait_data_summary[0,2]).shape[1] +1

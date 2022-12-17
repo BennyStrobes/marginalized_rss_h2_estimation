@@ -7,6 +7,10 @@ ldsc_baseline_ld_hg19_annotation_dir="/n/groups/price/ldsc/reference_files/1000G
 # LDSC 1KG genotype files (hg19)
 ldsc_genotype_dir="/n/groups/price/ldsc/reference_files/1000G_EUR_Phase3/plink_files/"
 
+# Quasi independent LD Blocks (hg19)
+# Downloaded from https://bitbucket.org/nygcresearch/ldetect-data/src/master/ on 12/17/22
+quasi_independent_ld_blocks_dir="/n/groups/price/ben/quasi_independent_ld_blocks/EUR/"
+
 # Summary statistic directory
 sumstat_dir="/n/groups/price/ldsc/sumstats_formatted_2021/"
 
@@ -65,6 +69,10 @@ do
 done
 fi
 
+chrom_num="21"
+sh generate_shared_marginalized_rss_h2_input_data_on_a_single_chromosome.sh $chrom_num $ldsc_baseline_ld_hg19_annotation_dir $ldsc_genotype_dir $shared_input_data_dir $window_size
+
+
 # Size of windows (In MB)
 window_size="3"
 # Preprocess genotype data
@@ -79,8 +87,9 @@ fi
 
 trait_name="UKB_460K.blood_WHITE_COUNT"
 window_size="3"
+if false; then
 sh run_marginalized_rss_h2_regression.sh $trait_name $shared_input_data_dir $trait_specific_input_data_dir $marginalized_rss_h2_results_dir $sumstat_dir $window_size
-
+fi
 
 
 
