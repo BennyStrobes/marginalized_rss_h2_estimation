@@ -81,7 +81,7 @@ window_names = []
 
 
 # Loop through chromosomes
-for chrom_num in range(1,23):
+for chrom_num in range(21,23):
 	print(chrom_num)
 	# Get chromosome window file
 	chrom_window_file = shared_input_data_dir + 'genomic_' + window_size + '_mb_windows_chrom_' + str(chrom_num) + '.txt'

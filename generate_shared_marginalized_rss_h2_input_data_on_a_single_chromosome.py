@@ -87,6 +87,25 @@ def corr2_coeff(A, B):
 
     return corr_coef
 
+def create_ld_matrix_no_distance_filter(G_obj, row_snp_indices, column_snp_indices):
+	snp_pos = np.asarray(G_obj.pos)
+	G_t = np.float64(np.transpose(G_obj.values))
+	#G =G_obj.values
+
+	ld_mat = scipy.sparse.lil_matrix((len(row_snp_indices), len(column_snp_indices)))
+
+	for row_iter, row_snp_index in enumerate(row_snp_indices):
+		valid_columns = np.abs(snp_pos[row_snp_index] - snp_pos[column_snp_indices]) > -2.0 # Silly hack to get all columns
+		corrz = corr2_coeff(G_t[row_snp_index,None], G_t[column_snp_indices[valid_columns],:])[0,:]
+		corrz = np.around(corrz, decimals=8)
+		#corrz2 = corr2_coeff(G_t[column_snp_indices[valid_columns],:], G_t[row_snp_index,None])[:,0]
+		#corrz2 = np.around(corrz2, decimals=5)
+		ld_mat[row_iter, valid_columns] = corrz
+
+	ld_mat2 = ld_mat.tocsr(copy=False)
+
+
+	return ld_mat2
 
 def create_ld_matrix(G_obj, row_snp_indices, column_snp_indices):
 	snp_pos = np.asarray(G_obj.pos)
@@ -94,7 +113,6 @@ def create_ld_matrix(G_obj, row_snp_indices, column_snp_indices):
 	#G =G_obj.values
 
 	ld_mat = scipy.sparse.lil_matrix((len(row_snp_indices), len(column_snp_indices)))
-
 
 	for row_iter, row_snp_index in enumerate(row_snp_indices):
 		valid_columns = np.abs(snp_pos[row_snp_index] - snp_pos[column_snp_indices]) <= 1000000.0
@@ -315,7 +333,17 @@ for line in f:
 	output_ld_mat_reg_ref = shared_input_data_dir + 'ld_mat_regression_reference_chr_' + str(int(window_size)) + '_mb_windows_' + window_name + '.npz'
 	scipy.sparse.save_npz(output_ld_mat_reg_ref, ld_mat_reg_ref, compressed=True)
 
+	# Extract sparse LD matrix of dimension regression snps by regression snps
+	ld_mat_reg_reg_no_distance_filter = create_ld_matrix_no_distance_filter(G_obj, window_regression_snp_indices, window_regression_snp_indices)
+	# Save to output
+	output_ld_mat_reg_reg_no_dist = shared_input_data_dir + 'ld_mat_regression_regression_chr_' + str(int(window_size)) + '_mb_windows_' + window_name + 'no_distance_filter.npy'
+	np.save(output_ld_mat_reg_reg_no_dist, ld_mat_reg_reg_no_distance_filter.toarray())
 
+	# Extract sparse LD matrix of dimension regression snps by reference snps
+	ld_mat_reg_ref_no_distance_filter = create_ld_matrix_no_distance_filter(G_obj, window_regression_snp_indices, window_reference_snp_indices)
+	# Save to output
+	output_ld_mat_reg_ref_no_dist = shared_input_data_dir + 'ld_mat_regression_reference_chr_' + str(int(window_size)) + '_mb_windows_' + window_name + '_no_distance_filter.npy'
+	np.save(output_ld_mat_reg_ref_no_dist, ld_mat_reg_ref_no_distance_filter.toarray())
 
 
 f.close()

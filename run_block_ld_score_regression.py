@@ -70,27 +70,25 @@ sample_size_file = sys.argv[6]
 output_root = sys.argv[7]
 
 
-'''
+
 print('loading in data')
 # Load in data
 chi_sq = np.loadtxt(chi_sq_file)
 ld_scores = np.loadtxt(ld_score_file)
 regression_weights = np.loadtxt(regression_weights_file)
-'''
 window_names = np.loadtxt(window_names_file,dtype=str)
-'''
+
 sample_size = np.loadtxt(sample_size_file)*1.0
 
 
 print('running regression')
-taus, intercept = run_ld_score_regression(chi_sq, ld_scores, regression_weights, sample_size)
+taus, intercept = run_ld_score_regression(chi_sq, ld_scores[:,0:1], regression_weights, sample_size)
 
 np.savetxt(output_root + '_tau_estimates.txt', taus, fmt="%s")
 np.savetxt(output_root + '_intercept_estimates.txt', [intercept], fmt="%s")
 
 '''
 ordered_unique_window_names = get_ordered_unique_window_names(window_names)
-'''
 for window_iter, window_name in enumerate(ordered_unique_window_names):
 	print(window_iter)
 	bootstrap_indices = window_names != window_name
@@ -99,7 +97,7 @@ for window_iter, window_name in enumerate(ordered_unique_window_names):
 	np.savetxt(output_root + '_tau_estimates_bs_' + str(window_iter) + '.txt', bs_taus, fmt="%s")
 	np.savetxt(output_root + '_intercept_estimates_bs_' + str(window_iter) + '.txt', [bs_intercept], fmt="%s")
 
-'''
 
 
 calculate_bootstrap_std_errors (output_root, len(ordered_unique_window_names))
+'''

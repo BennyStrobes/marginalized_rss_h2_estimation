@@ -14,10 +14,9 @@ ldsc_results="$5"
 ldsc_evd_results="$6"
 sumstat_dir="$7"
 
-
-
+if false; then
 python3 prepare_ldsc_input_data_for_a_trait.py $trait_name $window_size $shared_input_data_dir $ldsc_results $sumstat_dir
-
+fi
 
 chi_sq_file=$ldsc_results$trait_name"_"$window_size"_mb_windows_chi_sq_stats.txt"
 ld_score_file=$ldsc_results$trait_name"_"$window_size"_mb_windows_ld_scores.txt"

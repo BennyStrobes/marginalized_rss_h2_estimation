@@ -57,21 +57,29 @@ h2_viz_dir=$output_root"h2_viz/"
 
 # Size of windows (In MB)
 window_size="5"
-
 # Preprocess genotype data
 if false; then
-for chrom_num in {1..20}
+for chrom_num in {1..22}
 do
 	sbatch generate_shared_marginalized_rss_h2_input_data_on_a_single_chromosome.sh $chrom_num $ldsc_baseline_ld_hg19_annotation_dir $ldsc_genotype_dir $shared_input_data_dir $window_size
 done
 fi
 
-trait_name="UKB_460K.blood_WHITE_COUNT"
-window_size="5"
+# Size of windows (In MB)
+window_size="3"
+# Preprocess genotype data
 if false; then
-sh run_marginalized_rss_h2_regression.sh $trait_name $shared_input_data_dir $trait_specific_input_data_dir $marginalized_rss_h2_results_dir $sumstat_dir $window_size
+for chrom_num in {1..22}
+do
+	sbatch generate_shared_marginalized_rss_h2_input_data_on_a_single_chromosome.sh $chrom_num $ldsc_baseline_ld_hg19_annotation_dir $ldsc_genotype_dir $shared_input_data_dir $window_size
+done
 fi
 
+
+
+trait_name="UKB_460K.blood_WHITE_COUNT"
+window_size="3"
+sh run_marginalized_rss_h2_regression.sh $trait_name $shared_input_data_dir $trait_specific_input_data_dir $marginalized_rss_h2_results_dir $sumstat_dir $window_size
 
 
 
@@ -96,7 +104,7 @@ fi
 trait_name="UKB_460K.blood_WHITE_COUNT"
 window_size="5"
 if false; then
-sbatch run_block_ld_score_regression.sh $trait_name $window_size $shared_input_data_dir $shared_evd_input_data_dir $ldsc_results $ldsc_evd_results $sumstat_dir
+sh run_block_ld_score_regression.sh $trait_name $window_size $shared_input_data_dir $shared_evd_input_data_dir $ldsc_results $ldsc_evd_results $sumstat_dir
 fi
 
 
