@@ -59,19 +59,14 @@ standard_sldsc_results=$output_root"standard_sldsc_results/"
 h2_viz_dir=$output_root"h2_viz/"
 
 
-# Size of windows (In MB)
-window_size="5"
+
 # Preprocess genotype data
 if false; then
 for chrom_num in {1..22}
 do
-	sbatch generate_shared_marginalized_rss_h2_input_data_on_a_single_chromosome.sh $chrom_num $ldsc_baseline_ld_hg19_annotation_dir $ldsc_genotype_dir $shared_input_data_dir $window_size
+	sbatch generate_shared_marginalized_rss_h2_input_data_on_a_single_chromosome.sh $chrom_num $ldsc_baseline_ld_hg19_annotation_dir $ldsc_genotype_dir $shared_input_data_dir $quasi_independent_ld_blocks_dir
 done
 fi
-
-chrom_num="21"
-sh generate_shared_marginalized_rss_h2_input_data_on_a_single_chromosome.sh $chrom_num $ldsc_baseline_ld_hg19_annotation_dir $ldsc_genotype_dir $shared_input_data_dir $window_size
-
 
 # Size of windows (In MB)
 window_size="3"

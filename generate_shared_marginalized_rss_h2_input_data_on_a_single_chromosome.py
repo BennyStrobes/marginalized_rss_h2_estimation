@@ -182,23 +182,98 @@ def window_overlaps_specific_region(chrom_num, window_flank_left_start, window_f
 
 	return overlap_bool
 
+# Filter on windows in long range ld Regions (as defined in Weisbroad et al 2020)
+# chr6 25.5–33.5 M
+# chr8 8–12 M
+# chr11 46–57 M
+def in_long_range_ld_region(chrom_num, window_start, window_end):
+	booler = False 
+	mb= 1000000
+	if chrom_num == '6':
+		if window_start >= 25.5*mb and window_start < 33.5*mb:
+			booler = True
+		if window_end >= 25.5*mb and window_end < 33.5*mb:
+			booler = True
+		if 25.5*mb >= window_start and 25.5*mb < window_end:
+			booler = True
+		if 33.5*mb >= window_start and 33.5*mb < window_end:
+			booler = True
+	if chrom_num == '8':
+		if window_start >= 8*mb and window_start < 12*mb:
+			booler = True
+		if window_end >= 8*mb and window_end < 12*mb:
+			booler = True
+		if 8*mb >= window_start and 8*mb < window_end:
+			booler = True
+		if 12*mb >= window_start and 12*mb < window_end:
+			booler = True
+	if chrom_num == '11':
+		if window_start >= 46*mb and window_start < 57*mb:
+			booler = True
+		if window_end >= 46*mb and window_end < 57*mb:
+			booler = True
+		if 46*mb >= window_start and 46*mb < window_end:
+			booler = True
+		if 57*mb >= window_start and 57*mb < window_end:
+			booler = True		
 
-def get_and_print_genomic_windows(G_obj, window_size, window_file, regression_snp_indices, chrom_num):
+
+	return booler
+
+
+
+def get_and_print_genomic_windows(G_obj, quasi_independent_ld_blocks_dir, window_file, regression_snp_indices, chrom_num):
 	# load in snp positions on this chromosome
 	snp_positions = np.asarray(np.asarray(G_obj.pos))
 	chrom_start = np.min(snp_positions)
 	chrom_end = np.max(snp_positions)
 
+
+
 	# Initialize output window file
 	t = open(window_file,'w')
-	t.write('window_name\tchr\twindow_flank_left_start\twindow_middle_start\twindow_flank_right_start\twindow_flank_right_end\tnum_regression_snps\tnum_reference_snps\n')
+	t.write('window_name\tchr\twindow_start\twindow_end\tnum_regression_snps\tnum_reference_snps\n')
 
-	# Get current window position for while loop
-	window_start = chrom_start
+	# Stream quasi independent ld blocks file
+	quasi_ind_ld_block_chrom_file = quasi_independent_ld_blocks_dir + 'fourier_ls-chr' + str(chrom_num) + '.bed'
+	f = open(quasi_ind_ld_block_chrom_file)
+	head_count = 0
+	for line in f:
+		line = line.rstrip()
+		data = line.split()
+		if head_count == 0:
+			head_count = head_count + 1
+			continue
+		window_start = int(data[1])
+		window_end = int(data[2])
 
-	# Term that is 1MB
-	one_mb = 1000000.0
+		# Quick error check
+		if window_end < window_start:
+			print('assumption erroror')
+			pdb.set_trace()
 
+		# Filter on windows in long range ld Regions (as defined in Weisbroad et al 2020)
+		# chr6 25.5–33.5 M
+		# chr8 8–12 M, chr11 46–57 M
+		if in_long_range_ld_region(chrom_num, window_start, window_end):
+			print('skipping region due to long range ld region: ' + str(chrom_num) + '_' + str(window_start) + '_' + str(window_end))
+			continue
+
+		# Remove window if no regression snps
+		num_regression_snps = sum((snp_positions[regression_snp_indices] >= window_start) & (snp_positions[regression_snp_indices] < window_end))
+		num_reference_snps = sum((snp_positions >= window_start) & (snp_positions < window_end))
+		if num_reference_snps <= 0:
+			print('skip because no reference snps ' + str(chrom_num) + '\t' + str(window_flank_left_start))
+			continue
+
+		# Name of window
+		window_name = 'window_' + str(chrom_num) + '_' + str(int(window_start)) + '_' + str(int(window_end))
+		# Print to output
+		t.write(window_name + '\t' + str(chrom_num) + '\t' + str(window_start) + '\t' + str(window_end) + '\t' + str(num_regression_snps) + '\t' + str(num_reference_snps) + '\n')
+	t.close()
+	f.close()
+
+	'''
 	# Loop through to create windows
 	while window_start < chrom_end:
 		window_flank_left_start = window_start
@@ -243,13 +318,14 @@ def get_and_print_genomic_windows(G_obj, window_size, window_file, regression_sn
 		t.write(window_name + '\t' + str(chrom_num) + '\t' + str(window_flank_left_start) + '\t' + str(window_middle_start) + '\t' + str(window_flank_right_start) + '\t' + str(window_flank_right_end) + '\t' + str(num_regression_snps) + '\t' + str(num_reference_snps) + '\n')
 
 	t.close()
+	'''
 
 
 chrom_num = sys.argv[1]
 ldsc_annotation_dir = sys.argv[2]
 ldsc_genotype_dir = sys.argv[3]
 shared_input_data_dir = sys.argv[4]
-window_size = float(sys.argv[5])
+quasi_independent_ld_blocks_dir = sys.argv[5]
 
 
 # Load in regression snps (ie hapmap3 snps)
@@ -274,8 +350,8 @@ if len(G_obj.pos) != geno_anno.shape[0]:
 global_regression_snp_indices = get_indices_corresponding_to_regression_snps(np.asarray(G_obj.snp), regression_snps)
 
 # Get and print windows on this chromosome
-window_file = shared_input_data_dir + 'genomic_' + str(int(window_size)) + '_mb_windows_chrom_' + chrom_num + '.txt'
-get_and_print_genomic_windows(G_obj, window_size, window_file, global_regression_snp_indices, chrom_num)
+window_file = shared_input_data_dir + 'genomic_quasi_independent_blocks_windows_chrom_' + chrom_num + '.txt'
+get_and_print_genomic_windows(G_obj, quasi_independent_ld_blocks_dir, window_file, global_regression_snp_indices, chrom_num)
 
 # Snp positions
 snp_positions = np.asarray(G_obj.pos)
@@ -297,52 +373,39 @@ for line in f:
 	# Extract relevent info for this window
 	window_name = data[0]
 	window_chrom = data[1]
-	window_flank_left_start = float(data[2])
-	window_middle_start = float(data[3])
-	window_flank_right_start = float(data[4])
-	window_flank_right_end = float(data[5])
-	num_regression_snps = int(data[6])
-	num_reference_snps = int(data[7])
+	window_start = float(data[2])
+	window_end = float(data[3])
+	num_regression_snps = int(data[4])
+	num_reference_snps = int(data[5])
 	print(window_name)
 
+
 	# Need to get window regression snp indices and window reference snp indices
-	window_reference_snp_indices = reference_snp_indices[(snp_positions >= window_flank_left_start) & (snp_positions < window_flank_right_end)]
-	window_regression_snp_indices = global_regression_snp_indices[(snp_positions[global_regression_snp_indices] >= window_middle_start) & (snp_positions[global_regression_snp_indices] < window_flank_right_start)]
+	window_reference_snp_indices = reference_snp_indices[(snp_positions >= window_start) & (snp_positions < window_end)]
+	window_regression_snp_indices = global_regression_snp_indices[(snp_positions[global_regression_snp_indices] >= window_start) & (snp_positions[global_regression_snp_indices] < window_end)]
 
 	# Print reference snp indices bim
-	reference_bim_output = shared_input_data_dir + 'reference_snp.' + str(int(window_size)) + '_mb_windows_' + window_name + '.bim'
+	reference_bim_output = shared_input_data_dir + 'reference_snp.quasi_independent_ld_blocks_windows_' + window_name + '.bim'
 	print_bim_for_set_of_snps(G_obj, window_reference_snp_indices, reference_bim_output)
 
 	# Print regression snp indices bim
-	regression_bim_output = shared_input_data_dir + 'regression_snp.'+ str(int(window_size)) + '_mb_windows_' +  window_name + '.bim'
+	regression_bim_output = shared_input_data_dir + 'regression_snp.quasi_independent_ld_blocks_windows_' +  window_name + '.bim'
 	print_bim_for_set_of_snps(G_obj, window_regression_snp_indices, regression_bim_output)
 
 	# Print reference snp annotations
-	reference_annotation_output = shared_input_data_dir + 'reference_annotation.'+ str(int(window_size)) + '_mb_windows_' + window_name + '.npy'
+	reference_annotation_output = shared_input_data_dir + 'reference_annotation.quasi_independent_ld_blocks_windows_' + window_name + '.npy'
 	print_reference_annotations(geno_anno[window_reference_snp_indices,:], reference_annotation_output)
-
-	# Extract sparse LD matrix of dimension regression snps by regression snps
-	ld_mat_reg_reg = create_ld_matrix(G_obj, window_regression_snp_indices, window_regression_snp_indices)
-	# Save to output
-	output_ld_mat_reg_reg = shared_input_data_dir + 'ld_mat_regression_regression_chr_' + str(int(window_size)) + '_mb_windows_' + window_name + '.npz'
-	scipy.sparse.save_npz(output_ld_mat_reg_reg, ld_mat_reg_reg, compressed=True)
-
-	# Extract sparse LD matrix of dimension regression snps by reference snps
-	ld_mat_reg_ref = create_ld_matrix(G_obj, window_regression_snp_indices, window_reference_snp_indices)
-	# Save to output
-	output_ld_mat_reg_ref = shared_input_data_dir + 'ld_mat_regression_reference_chr_' + str(int(window_size)) + '_mb_windows_' + window_name + '.npz'
-	scipy.sparse.save_npz(output_ld_mat_reg_ref, ld_mat_reg_ref, compressed=True)
 
 	# Extract sparse LD matrix of dimension regression snps by regression snps
 	ld_mat_reg_reg_no_distance_filter = create_ld_matrix_no_distance_filter(G_obj, window_regression_snp_indices, window_regression_snp_indices)
 	# Save to output
-	output_ld_mat_reg_reg_no_dist = shared_input_data_dir + 'ld_mat_regression_regression_chr_' + str(int(window_size)) + '_mb_windows_' + window_name + 'no_distance_filter.npy'
+	output_ld_mat_reg_reg_no_dist = shared_input_data_dir + 'ld_mat_regression_regression_quasi_independent_ld_blocks_windows_' + window_name + 'no_distance_filter.npy'
 	np.save(output_ld_mat_reg_reg_no_dist, ld_mat_reg_reg_no_distance_filter.toarray())
 
 	# Extract sparse LD matrix of dimension regression snps by reference snps
 	ld_mat_reg_ref_no_distance_filter = create_ld_matrix_no_distance_filter(G_obj, window_regression_snp_indices, window_reference_snp_indices)
 	# Save to output
-	output_ld_mat_reg_ref_no_dist = shared_input_data_dir + 'ld_mat_regression_reference_chr_' + str(int(window_size)) + '_mb_windows_' + window_name + '_no_distance_filter.npy'
+	output_ld_mat_reg_ref_no_dist = shared_input_data_dir + 'ld_mat_regression_reference_quasi_independent_ld_blocks_windows_' + window_name + '_no_distance_filter.npy'
 	np.save(output_ld_mat_reg_ref_no_dist, ld_mat_reg_ref_no_distance_filter.toarray())
 
 
