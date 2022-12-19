@@ -154,8 +154,7 @@ def rss_w_intercept_softplus_neg_log_likelihood_and_gradient_on_single_chromosom
 	anno_prod_exp = np.exp(anno_prod)
 	beta_beta_transpose_diag = softplus_np(anno_prod)*sample_size
 
-	#print(beta_beta_transpose_diag/sample_size)
-
+	#ex = np.sort(beta_beta_transpose_diag/sample_size)
 
 	# Compute single element of covariance
 	R_beta2_RT = np.dot(np.multiply(chrom_ld_mat_reg_ref, beta_beta_transpose_diag), np.transpose(chrom_ld_mat_reg_ref))
@@ -596,10 +595,13 @@ def run_adam_optimization(x, trait_name, trait_data_summary):
 
 	# Loop through windows
 	num_windows = trait_data_summary.shape[0]
-	for epoch_iter in range(30):
+	print(num_windows)
+	for epoch_iter in range(50):
 		total_log_like = 0.0
-		counter = 0 
+		counter = 0
+		start_time = time.time()
 		for window_iter in np.random.permutation(range(num_windows)):
+			#counter = counter + 1
 			# Extract data on this window
 			# Annotation file
 			chrom_anno = np.load(trait_data_summary[window_iter, 2])
@@ -626,9 +628,16 @@ def run_adam_optimization(x, trait_name, trait_data_summary):
 			if chrom_ld_mat_reg_reg.shape[0] == 1:
 				continue
 
+			if valid_regression_indices.size == 1:
+				continue
+
+			if len(valid_regression_indices) == 0:
+				continue
+
 			# Fillter regression indices to those we have z-scores for
 			chrom_ld_mat_reg_ref = chrom_ld_mat_reg_ref[valid_regression_indices,:]
 			chrom_ld_mat_reg_reg = chrom_ld_mat_reg_reg[valid_regression_indices,:][:, valid_regression_indices]
+
 
 			chrom_neg_likelihood, chrom_gradient = rss_w_intercept_softplus_neg_log_likelihood_and_gradient_on_single_chromosome(x, z_scores, chrom_ld_mat_reg_ref, chrom_ld_mat_reg_reg, chrom_anno, sample_size)
 
@@ -638,9 +647,18 @@ def run_adam_optimization(x, trait_name, trait_data_summary):
 
 			x = np.copy(x_tf)
 			total_log_like = total_log_like + chrom_neg_likelihood
-			print(softplus_np(x))
-		print(softplus_np(x))
+			#print(softplus_np(x))
+		#print(softplus_np(x))
 		print(total_log_like)
+		print((time.time()-start_time)/60.0)
+		print('ex')
+		x_intercept = x[0]
+		x_anno = x[1:]
+		anno_prod = np.dot(chrom_anno, x_anno)
+		anno_prod_exp = np.exp(anno_prod)
+		beta_beta_transpose_diag = softplus_np(anno_prod)*sample_size
+		ex = np.sort(beta_beta_transpose_diag/sample_size)
+		print(ex)
 
 def extract_non_colinear_regression_snp_indices(chrom_ld_mat_reg_ref, abs_correlation_thresh):
 	corr = np.corrcoef(chrom_ld_mat_reg_ref)
@@ -936,7 +954,7 @@ trait_data_summary = np.loadtxt(trait_data_summary_file, dtype=str,delimiter='\t
 ################################################
 # Initialize tau vector
 num_anno = np.load(trait_data_summary[0,2]).shape[1] +1
-num_anno = 2
+#num_anno = 2
 tau_0 = np.zeros(num_anno) 
 tau_0[1] = softplus_inv_np(1e-5)
 tau_0[0] = softplus_inv_np(.05)

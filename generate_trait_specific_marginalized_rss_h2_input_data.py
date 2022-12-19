@@ -86,11 +86,10 @@ shared_input_data_dir = sys.argv[2]
 trait_specific_input_data_dir = sys.argv[3]
 marginalized_rss_h2_results_dir = sys.argv[4]
 sumstat_dir = sys.argv[5]
-window_size = sys.argv[6]
 
 
 # Output file to summary trait data (one line per window)
-trait_data_summary_file = trait_specific_input_data_dir + trait_name + '_' + str(window_size) + '_mb_window_summary.txt'
+trait_data_summary_file = trait_specific_input_data_dir + trait_name + '_quasi_independent_ld_blocks_window_summary.txt'
 t = open(trait_data_summary_file,'w')
 t.write('window_name\tchrom_num\tannotation_file\tld_mat_reg_ref\tld_mat_reg_reg\tz_score_file\tsnp_index_file\tsample_size\n')
 
@@ -103,7 +102,7 @@ rsid_to_info, gwas_sample_size = extract_sumstat_data(sumstat_file)
 for chrom_num in range(1,23):
 	print(chrom_num)
 	# Get chromosome window file
-	chrom_window_file = shared_input_data_dir + 'genomic_' + window_size + '_mb_windows_chrom_' + str(chrom_num) + '.txt'
+	chrom_window_file = shared_input_data_dir + 'genomic_quasi_independent_blocks_windows_chrom_' + str(chrom_num) + '.txt'
 
 	# loop through windows on this chromosome
 	f = open(chrom_window_file)
@@ -119,11 +118,12 @@ for chrom_num in range(1,23):
 		chrom_num = data[1]
 
 		# Extract indices corresponding to regression snps
-		regression_snp_indices, z_scores = get_valid_snp_indices_and_z_scores(shared_input_data_dir + 'regression_snp.' + window_size + '_mb_windows_' + window_name + '.bim', rsid_to_info)
-
+		regression_snp_indices, z_scores = get_valid_snp_indices_and_z_scores(shared_input_data_dir + 'regression_snp.quasi_independent_ld_blocks_windows_' + window_name + '.bim', rsid_to_info)
+		if len(regression_snp_indices) == 0:
+			continue
 		# Filter snps to those that are not co-linear
-		ld_mat_reg_ref_file = shared_input_data_dir + 'ld_mat_regression_reference_chr_' + window_size + '_mb_windows_' + window_name + '_no_distance_filter.npy'
-		ld_mat_reg_reg_file = shared_input_data_dir + 'ld_mat_regression_regression_chr_' + window_size + '_mb_windows_' + window_name + 'no_distance_filter.npy'
+		ld_mat_reg_ref_file = shared_input_data_dir + 'ld_mat_regression_reference_quasi_independent_ld_blocks_windows_' + window_name + '_no_distance_filter.npy'
+		ld_mat_reg_reg_file = shared_input_data_dir + 'ld_mat_regression_regression_quasi_independent_ld_blocks_windows_' + window_name + 'no_distance_filter.npy'
 		chrom_ld_mat_reg_ref = np.load(ld_mat_reg_ref_file)
 		chrom_ld_mat_reg_ref = chrom_ld_mat_reg_ref[regression_snp_indices,:]
 		if chrom_ld_mat_reg_ref.shape[0] <= 1:
@@ -135,13 +135,13 @@ for chrom_num in range(1,23):
 		z_scores = z_scores[non_colinear_regression_snp_indices]
 
 		# Save to output
-		snp_index_output_file = trait_specific_input_data_dir + trait_name + '_valid_regression_indices_' + window_size + '_mb_windows_' + window_name + '.txt'
+		snp_index_output_file = trait_specific_input_data_dir + trait_name + '_valid_regression_indices_quasi_independent_ld_blocks_windows_' + window_name + '.txt'
 		np.savetxt(snp_index_output_file, regression_snp_indices, fmt="%s", delimiter='\n')
-		z_output_file = trait_specific_input_data_dir + trait_name + '_z_scores_' + window_size + '_mb_windows_' + window_name + '.txt'
+		z_output_file = trait_specific_input_data_dir + trait_name + '_z_scores_quasi_independent_ld_blocks_windows_' + window_name + '.txt'
 		np.savetxt(z_output_file, z_scores, fmt="%s", delimiter='\n')
 
 		# Premade output file paths
-		annotation_file = shared_input_data_dir + 'reference_annotation.' + window_size + '_mb_windows_' + window_name + '.npy'
+		annotation_file = shared_input_data_dir + 'reference_annotation.quasi_independent_ld_blocks_windows_' + window_name + '.npy'
 
 		# Print to output
 		t.write(window_name + '\t' + chrom_num + '\t' + annotation_file + '\t' + ld_mat_reg_ref_file + '\t' + ld_mat_reg_reg_file + '\t' + z_output_file + '\t' + snp_index_output_file + '\t' + str(gwas_sample_size) + '\n')
