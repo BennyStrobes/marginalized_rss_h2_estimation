@@ -70,11 +70,10 @@ fi
 
 
 
-
 trait_name="UKB_460K.blood_WHITE_COUNT"
-if false; then
-sbatch run_marginalized_rss_h2_regression.sh $trait_name $shared_input_data_dir $trait_specific_input_data_dir $marginalized_rss_h2_results_dir $sumstat_dir $window_size
-fi
+sh run_marginalized_rss_h2_regression.sh $trait_name $shared_input_data_dir $trait_specific_input_data_dir $marginalized_rss_h2_results_dir $sumstat_dir $window_size
+
+
 
 
 
