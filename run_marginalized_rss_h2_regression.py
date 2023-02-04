@@ -160,7 +160,7 @@ def rss_w_intercept_softplus_neg_log_likelihood_and_gradient_on_single_chromosom
 	R_beta2_RT = np.dot(np.multiply(chrom_ld_mat_reg_ref, beta_beta_transpose_diag), np.transpose(chrom_ld_mat_reg_ref))
 
 	# Compute full covariance
-	cov = R_beta2_RT + chrom_ld_mat_reg_reg + np.eye(chrom_ld_mat_reg_reg.shape[0])*softplus_np(x_intercept)
+	cov = R_beta2_RT + chrom_ld_mat_reg_reg*softplus_np(x_intercept) + np.eye(chrom_ld_mat_reg_reg.shape[0])*1e-4
 
 	# Invert covariance matrix
 	#precision = sp_inv(cov, np.eye(cov.shape[0]))
@@ -190,8 +190,10 @@ def rss_w_intercept_softplus_neg_log_likelihood_and_gradient_on_single_chromosom
 	tau_gradient = gradient_inv_term + gradient_log_det_term
 
 	# Gradient of intercept term
-	intercept_gradient_inv_term = -.5*np.dot(z_scores, np.dot(precision, np.dot(precision, z_scores)))
-	intercept_gradient_log_det_term = .5*np.trace(precision)
+	tmp=np.dot(z_scores,precision)
+	intercept_gradient_inv_term = -.5*np.dot(np.dot(tmp, chrom_ld_mat_reg_reg), tmp)
+	#intercept_gradient_inv_term = -.5*np.dot(z_scores, np.dot(precision, np.dot(precision, z_scores)))
+	intercept_gradient_log_det_term = .5*np.trace(np.dot(chrom_ld_mat_reg_reg, precision))
 	intercept_gradient = (intercept_gradient_log_det_term + intercept_gradient_inv_term)*np.exp(x_intercept)/(np.exp(x_intercept) + 1.0)
 
 	gradient = np.hstack(([intercept_gradient], tau_gradient))
@@ -659,6 +661,7 @@ def run_adam_optimization(x, trait_name, trait_data_summary):
 		beta_beta_transpose_diag = softplus_np(anno_prod)*sample_size
 		ex = np.sort(beta_beta_transpose_diag/sample_size)
 		print(ex)
+		print(softplus_np(x))
 
 def extract_non_colinear_regression_snp_indices(chrom_ld_mat_reg_ref, abs_correlation_thresh):
 	corr = np.corrcoef(chrom_ld_mat_reg_ref)
@@ -957,7 +960,7 @@ num_anno = np.load(trait_data_summary[0,2]).shape[1] +1
 #num_anno = 2
 tau_0 = np.zeros(num_anno) 
 tau_0[1] = softplus_inv_np(1e-5)
-tau_0[0] = softplus_inv_np(.05)
+tau_0[0] = softplus_inv_np(1.00)
 
 run_adam_optimization(tau_0, trait_name, trait_data_summary)
 

@@ -24,9 +24,8 @@ regression_weights_file=$ldsc_results$trait_name"_"$window_size"_mb_windows_regr
 window_names_file=$ldsc_results$trait_name"_"$window_size"_mb_windows_window_names.txt"
 sample_size_file=$ldsc_results$trait_name"_"$window_size"_mb_windows_samp_size.txt"
 output_root=$ldsc_results$trait_name"_"$window_size"_mb_windows_ldsc_results"
-if false; then
 python3 run_block_ld_score_regression.py $trait_name $chi_sq_file $ld_score_file $regression_weights_file $window_names_file $sample_size_file $output_root
-fi
+
 
 
 if false; then

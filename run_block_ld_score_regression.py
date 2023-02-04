@@ -83,6 +83,7 @@ sample_size = np.loadtxt(sample_size_file)*1.0
 
 print('running regression')
 taus, intercept = run_ld_score_regression(chi_sq, ld_scores[:,0:1], regression_weights, sample_size)
+pdb.set_trace()
 
 np.savetxt(output_root + '_tau_estimates.txt', taus, fmt="%s")
 np.savetxt(output_root + '_intercept_estimates.txt', [intercept], fmt="%s")
